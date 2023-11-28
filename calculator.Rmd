@@ -4,7 +4,83 @@ output: html_document
 date: "2023-11-28"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup , message = FALSE, warning = FALSE, include=F}
+# global default settings for chunks
+knitr::opts_chunk$set( eval = TRUE, warning = FALSE, message = FALSE, echo = T,
+                      fig.dim = c(6, 3),
+                      fig.width = 9,
+                      fig.height = 5,
+                      dpi = 300,
+                      fig.pos = "!h"
+  )
+
+Packages <- c("tidyverse","rgeocodio","arsenal","patchwork","rentrez")
+invisible(lapply(Packages, library, character.only = TRUE))
+
+theme_set(theme_minimal() +
+    theme(legend.position = "bottom") +
+    theme(plot.title = element_text(hjust = 0.5, size = 12),
+    plot.subtitle = element_text(hjust = 0.5, size = 8))
+  )
+
+my_controls <- arsenal::tableby.control(
+    test = T,
+    total = T,
+    numeric.test = "kwt", cat.test = "chisq",
+    numeric.stats = c("N", "meansd", "medianq1q3", "range", "Nmiss2"),
+    cat.stats = c("countpct", "Nmiss2"),
+    stats.labels = list(
+    meansd = "Mean (SD)",
+    medianq1q3 = "Median (Q1, Q3)",
+    range = "Min - Max",
+    Nmiss2 = "Missing"
+  )
+)
+my_controls_row <- arsenal::tableby.control(
+    test = T, total = T,
+    numeric.test = "kwt", cat.test = "chisq",
+    numeric.stats = c("N", "meansd", "medianq1q3", "range", "Nmiss2")
+    , cat.stats = c("countrowpct", "Nmiss2"),
+    stats.labels = list(
+    meansd = "Mean (SD)",
+    medianq1q3 = "Median (Q1, Q3)",
+    range = "Min - Max",
+    Nmiss2 = "Missing"
+  )
+)
+```
+
+
+```{r}
+
+# Example usage
+author_name <- "Emma Benn" 
+publications <- get_publications(author_name, max_results = 5) 
+print(publications)
+
+query <- paste0(author_name, "[Author]")
+ids <- entrez_search("pubmed", query, retmax = 10)$ids
+rec<-  entrez_fetch("pubmed", ids[10], rettype = "xml")
+parsed <- XML::xmlTreeParse(rec, useInternalNodes = TRUE)
+cit<- XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, "//PubmedArticle/MedlineCitation/CitationSubset"))
+ 
+if (length(ids) > 0){
+    records <- entrez_fetch("pubmed", ids, rettype = "xml")$pubmedarticle
+    # Extract relevant information (customize based on your needs)
+    publications <- lapply(records, function(record) {
+      data.frame(
+        title = xpathSApply(record, "//ArticleTitle", xmlValue),
+        journal = xpathSApply(record, "//Title", xmlValue),
+        year = xpathSApply(record, "//PubDate/Year", xmlValue),
+        pmid = xpathSApply(record, "//PMID", xmlValue)
+      )
+    }) %>% bind_rows() 
+    
+    return(publications)
+  } else {
+    warning("No publications found.")
+    return(NULL)
+  }
+
 ```
 
