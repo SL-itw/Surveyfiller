@@ -14,7 +14,7 @@ knitr::opts_chunk$set( eval = TRUE, warning = FALSE, message = FALSE, echo = T,
                       fig.pos = "!h"
   )
 
-Packages <- c("tidyverse","rgeocodio","arsenal","patchwork","rentrez")
+Packages <- c("tidyverse","rgeocodio","arsenal","patchwork","rentrez", "lubridate")
 invisible(lapply(Packages, library, character.only = TRUE))
 
 theme_set(theme_minimal() +
@@ -53,34 +53,9 @@ my_controls_row <- arsenal::tableby.control(
 
 ```{r}
 
-# Example usage
-author_name <- "Emma Benn" 
-publications <- get_publications(author_name, max_results = 5) 
-print(publications)
+get_pubmed("Emma Benn", "1/3/2023") 
 
-query <- paste0(author_name, "[Author]")
-ids <- entrez_search("pubmed", query, retmax = 10)$ids
-rec<-  entrez_fetch("pubmed", ids[10], rettype = "xml")
-parsed <- XML::xmlTreeParse(rec, useInternalNodes = TRUE)
-cit<- XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, "//PubmedArticle/MedlineCitation/CitationSubset"))
- 
-if (length(ids) > 0){
-    records <- entrez_fetch("pubmed", ids, rettype = "xml")$pubmedarticle
-    # Extract relevant information (customize based on your needs)
-    publications <- lapply(records, function(record) {
-      data.frame(
-        title = xpathSApply(record, "//ArticleTitle", xmlValue),
-        journal = xpathSApply(record, "//Title", xmlValue),
-        year = xpathSApply(record, "//PubDate/Year", xmlValue),
-        pmid = xpathSApply(record, "//PMID", xmlValue)
-      )
-    }) %>% bind_rows() 
-    
-    return(publications)
-  } else {
-    warning("No publications found.")
-    return(NULL)
-  }
 
 ```
+
 

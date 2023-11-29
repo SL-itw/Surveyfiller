@@ -1,24 +1,30 @@
 
+get_pubmed<- function(name, hiredate){
 
-get_publications <- function(author_name, max_results = 10) {
-  # Query PubMed for publications by the author
+  # Formats author name
+  author_name = name
   query <- paste0(author_name, "[Author]")
-  ids <- entrez_search("pubmed", query, retmax = max_results)$ids
-  # Fetch publication details
-  if (length(ids) > 0) {
-    records <- entrez_fetch("pubmed", ids, rettype = "xml")$pubmedarticle
-    # Extract relevant information (customize based on your needs)
-    publications <- lapply(records, function(record) {
-      data.frame(
-        title = xpathSApply(record, "//ArticleTitle", xmlValue),
-        journal = xpathSApply(record, "//Title", xmlValue),
-        year = xpathSApply(record, "//PubDate/Year", xmlValue),
-        pmid = xpathSApply(record, "//PMID", xmlValue)
-      )
-    }) %>% bind_rows()
-    return(publications)
-  } else {
-    warning("No publications found.")
-    return(NULL)
+
+  # queries author article ID's by name
+  ids <- entrez_search("pubmed", query, retmax = 10000)$ids
+
+  # pulls records by ID's
+  rec<-  entrez_fetch("pubmed", ids, rettype = "xml")
+
+  # parses meta information
+  parsed <- XML::xmlTreeParse(rec, useInternalNodes = TRUE)
+
+  specific_date = lubridate::mdy(hiredate)
+  two_years_prior_date <- specific_date %m-% years(2)
+
+  cbind(
+  titles = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//ArticleTitle')),
+  pubdates = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/PubmedData/History/PubMedPubDate[@PubStatus="pubmed"]'))
+
+  ) %>% tibble() %>%
+    mutate(date = paste(pubdates.Month,pubdates.Day,pubdates.Year, sep = "/") %>% lubridate::mdy()
+    ) %>%
+    filter(date >= two_years_prior_date & date < specific_date) %>%
+    rename("titles" = "text") %>%
+    select(titles, date)
   }
-}
