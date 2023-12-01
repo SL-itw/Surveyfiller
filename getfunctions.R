@@ -4,24 +4,39 @@
 ########################################
 
 # Gets publications
-get_pubmed<- function(name,
+get_pubmed<- function(name1,
                       hiredate,
-                         affiliation1 = NA,
-                        affiliation2 = NA,
-                       affiliation3 = NA
+                      affiliation1,
+                      name2= NA,
+                      affiliation2 = NA,
+                      affiliation3 = NA
                       ){
 
-  # Formats author name
-  author_name = name
-  if(is.na(affiliation1) & is.na(affiliation2) & is.na(affiliation3)){
-    query <- paste0(author_name, "[Author]")
-  }else if(is.na(affiliation2) & is.na(affiliation3)){
-    query <- paste0(author_name, "[Author]", " AND ", affiliation1,"[Affiliation]")
-  }else if(is.na(affiliation3)){
-    query <- paste0(author_name, "[Author]", " AND ","(", affiliation1,"[Affiliation]"," OR ", affiliation2,"[Affiliation]",")")
-  }else{
-    query <- paste0(author_name, "[Author]", " AND ","(", affiliation1,"[Affiliation]"," OR ", affiliation2,"[Affiliation]"," OR ", affiliation3,"[Affiliation]",")")
-  }
+  query_frame = tibble(
+    name1 = name1,
+    name2 = name2,
+    affiliation1 = affiliation1,
+    affiliation2 = affiliation2,
+    affiliation3 = affiliation3
+  ) %>%
+    pivot_longer(
+      name1:affiliation3,
+      names_to = "label",
+      values_to = "input"
+    ) %>%
+    mutate(tag = if_else(grepl("name", label),"[Author]","[Affiliation]"),
+           ind = if_else(is.na(input),0,1)
+           ) %>%
+    filter(ind == 1)
+
+
+ query = query_frame %>%
+   mutate(separator = if_else(lead(tag) == tag, " OR ", " AND "),
+          separator = if_else(is.na(separator),"",separator),
+          containerL = if_else(separator == " OR ","(",""),
+          containerR = if_else(lag(separator) == " OR ",")",""),
+          containerR = if_else(is.na(containerR),"",containerR)) %>%
+   summarize(query = paste0(containerL,input,tag,containerR, separator,collapse = "")) %>% pull(query)
 
 
   # queries author article ID's by name

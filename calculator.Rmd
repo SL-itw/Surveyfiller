@@ -52,11 +52,12 @@ my_controls_row <- arsenal::tableby.control(
 
 
 ```{r}
-get_pubmed("Steven Lawrence", "1/3/2023") 
-get_pubmed("Steven Lawrence", "1/3/2023", "NYU") 
-get_pubmed("Steven Lawrence", "1/3/2023", "Mount Sinai", "NYU" ) 
-get_pubmed("Steven Lawrence", "1/3/2023", "Mount Sinai", "NYU", "Medgar Evers" ) 
-
+get_pubmed(name1 = "Steven Lawrence", 
+           name2 = "Richa Deshpande",
+           hiredate = "1/3/2023", 
+           affiliation1 = "NYU",
+           affiliation2 = "Mount Sinai") 
+              
 
 
 ```
