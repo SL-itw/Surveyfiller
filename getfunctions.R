@@ -1,9 +1,41 @@
 
+# Creates Queries #######################################
+
+query_func = function(name1,
+                      name2,
+                      affiliation1,
+                      affiliation2,
+                      affiliation3){
+ query = tibble(
+  name1 = name1,
+  name2 = name2,
+  affiliation1 = affiliation1,
+  affiliation2 = affiliation2,
+  affiliation3 = affiliation3
+) %>%
+  pivot_longer(
+    name1:affiliation3,
+    names_to = "label",
+    values_to = "input"
+  ) %>%
+  mutate(tag = if_else(grepl("name", label),"[Author]","[Affiliation]"),
+         ind = if_else(is.na(input),0,1)
+  ) %>%
+  filter(ind == 1) %>%
+  mutate(separator = if_else(lead(tag) == tag, " OR ", " AND "),
+         separator = if_else(is.na(separator),"",separator),
+         containerL = if_else(separator == " OR ","(",""),
+         containerR = if_else(lag(separator) == " OR ",")",""),
+         containerR = if_else(is.na(containerR),"",containerR)) %>%
+  summarize(query = paste0(containerL,input,tag,containerR, separator,collapse = "")) %>% pull(query)
+
+query
+
+}
 
 
-########################################
+# Gets Publications #######################################
 
-# Gets publications
 get_pubmed<- function(name1,
                       hiredate,
                       affiliation1,
@@ -12,31 +44,11 @@ get_pubmed<- function(name1,
                       affiliation3 = NA
                       ){
 
-  query_frame = tibble(
-    name1 = name1,
-    name2 = name2,
-    affiliation1 = affiliation1,
-    affiliation2 = affiliation2,
-    affiliation3 = affiliation3
-  ) %>%
-    pivot_longer(
-      name1:affiliation3,
-      names_to = "label",
-      values_to = "input"
-    ) %>%
-    mutate(tag = if_else(grepl("name", label),"[Author]","[Affiliation]"),
-           ind = if_else(is.na(input),0,1)
-           ) %>%
-    filter(ind == 1)
-
-
- query = query_frame %>%
-   mutate(separator = if_else(lead(tag) == tag, " OR ", " AND "),
-          separator = if_else(is.na(separator),"",separator),
-          containerL = if_else(separator == " OR ","(",""),
-          containerR = if_else(lag(separator) == " OR ",")",""),
-          containerR = if_else(is.na(containerR),"",containerR)) %>%
-   summarize(query = paste0(containerL,input,tag,containerR, separator,collapse = "")) %>% pull(query)
+ query = query_func(name1 = name1,
+                    name2 = name2,
+                    affiliation1 = affiliation1,
+                    affiliation2 = affiliation2,
+                    affiliation3 = affiliation3)
 
 
   # queries author article ID's by name
@@ -64,6 +76,5 @@ get_pubmed<- function(name1,
   }
 
 
-#################################
 
 
