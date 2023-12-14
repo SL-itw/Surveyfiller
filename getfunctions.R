@@ -75,6 +75,70 @@ get_pubmed<- function(name1,
     select(titles, date)
   }
 
+# Get Article link ###################################
+get_article_url <- function(title) {
+  # Construct the Google Scholar URL
+   paste0("https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=",
+                         URLencode(title))
+}
 
+# Get cited xml ##############
+
+get_cited <- function(title){
+
+  article_link = get_article_url(
+    title = title
+  )
+  page = rvest::read_html(article_link)
+  cite_string = rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div/div[contains(@class, "gs_ri")]/div[contains(@class, "gs_fl")]//a[contains(text(), "Cited by")]')%>%
+    rvest::html_text()
+
+  as.numeric(gsub("\\D", "", cite_string))
+
+}
+
+
+# Get full data #######################
+
+article_data <- function(name1,
+                         hiredate,
+                         affiliation1,
+                         name2= NA,
+                         affiliation2 = NA,
+                         affiliation3 = NA){
+
+  get_pubmed(name1 = name1,
+             hiredate = hiredate,
+             affiliation1 = affiliation1,
+             name2 = name2,
+             affiliation2 = affiliation2,
+             affiliation3 = affiliation3
+            ) %>%
+    mutate(citations = map(titles,get_cited)) %>%
+    unnest(citations)
+
+}
+
+# Get H-index ##############
+
+h_index <- function(name1,
+                    hiredate,
+                    affiliation1,
+                    name2= NA,
+                    affiliation2 = NA,
+                    affiliation3 = NA){
+
+
+  article_data(name1 = name1,
+               hiredate = hiredate,
+               affiliation1 = affiliation1,
+               name2 = name2,
+               affiliation2 = affiliation2,
+               affiliation3 = affiliation3) %>%
+    mutate(n = length(titles),
+           ind = if_else(citations >= n, 1,0)) %>%
+    summarize(h_index = sum(ind, na.rm = T)) %>%
+    pull(h_index)
+}
 
 

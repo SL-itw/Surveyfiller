@@ -52,12 +52,74 @@ my_controls_row <- arsenal::tableby.control(
 
 
 ```{r}
-get_pubmed(name1 = "Steven Lawrence", 
-           name2 = "Richa Deshpande",
+
+
+
+get_pubmed(name1 = "Richa Deshpande",
            hiredate = "1/3/2023", 
-           affiliation1 = "NYU",
-           affiliation2 = "Mount Sinai") 
+           affiliation1 = "Mount Sinai") 
+
+article_data(name1 = "Richa Deshpande",
+           hiredate = "1/3/2023", 
+           affiliation1 = "Mount Sinai") 
+
+h_index(name1 = "Richa Deshpande",
+           hiredate = "1/3/2023", 
+           affiliation1 = "Mount Sinai") 
+
+h_index(name1 = "Steven Lawrence",
+           hiredate = "1/3/2023", 
+           affiliation1 = "Mount Sinai",
+        affiliation2 = "New York University") 
               
+              
+
+scholar::get_scholar_id(last_name = "Deshpande",
+                        first_name =  "Richa",
+                        affiliation =  "Mount Sinai")
+
+get_article_cite_history("Toward Safer Opioid Prescribing in HIV care (TOWER): a mixed-methods, cluster-randomized trial.")
+
+title = "https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=Toward+Safer+Opioid+Prescribing+in+HIV+care+%28TOWER%29%3A+a+mixed-methods%2C+cluster-randomized+trial.&btnG="
+
+"https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=Phenotyping+autonomic+neuropathy+using+principal+component+analysis.&btnG="
+
+title = "Phenotyping autonomic neuropathy using principal component analysis."
+title = "Skin Bleaching Among African and Afro-Caribbean Women in New York City: Primary Findings from a P30 Pilot Study"
+title = "Impact of New York State's Health Home program on access to care among patients with diabetes."
+base_url <- 'https://scholar.google.com/scholar'
+query <- paste0("?q=", URLencode(title))
+page <- rvest::read_html(paste(base_url, query, sep = ""))
+first_result <- rvest::html_nodes(page, '.gs_r')[1]
+article_link <- rvest::html_node(first_result, 'a') %>% rvest::html_attr("href")
+
+
+article_link="https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=Phenotyping+autonomic+neuropathy+using+principal+component+analysis.&btnG="
+
+article_link = "https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=Skin+bleaching+among+African+and+Afro-Caribbean+women+in+New+York+City%3A+Primary+findings+from+a+P30+pilot+study&btnG="
+
+article_link = "https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=Impact+of+New+York+State%27s+Health+Home+program+on+access+to+care+among+patients+with+diabetes.&btnG="
+
+article_link = get_article_url("Skin Bleaching Among African and Afro-Caribbean Women in New York City: Primary Findings from a P30 Pilot Study")
+page <- rvest::read_html(article_link)
+rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div/div/div[3]/a[3]')
+
+rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div[contains(@class, "gs_fl")]//a[contains(text(), "Cited by")]') %>% rvest::html_text()
+rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div/div[2]/div[5]/a[3]') %>% rvest::html_text()
+
+node <- rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div/div/div[3]/a[3]')
+cited_by_count <- rvest::html_text(node) 
+
+get_cited("Impact of New York State's Health Home program on access to care among patients with diabetes.")
+
+
+```
+
+
+
+```{r}
+
+
 
 
 ```
