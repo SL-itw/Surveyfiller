@@ -67,7 +67,7 @@ h_index(name1 = "Richa Deshpande",
            hiredate = "1/3/2023", 
            affiliation1 = "Mount Sinai") 
 
-h_index(name1 = "Steven Lawrence",
+article_data(name1 = "Steven Lawrence",
            hiredate = "1/3/2023", 
            affiliation1 = "Mount Sinai",
         affiliation2 = "New York University") 
