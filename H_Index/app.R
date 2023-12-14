@@ -13,8 +13,7 @@ library(flexdashboard)
 library(tidyverse)
 library(rentrez)
 library(lubridate)
-
-source("../getfunctions.R")
+source("./getfunctions.R")
 
 # Define UI for application that draws a histogram
 ui <- dashboardPage(

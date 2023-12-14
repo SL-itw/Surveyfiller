@@ -1,0 +1,13 @@
+name: Pubmed_GScholars_Aim
+title: Pubmed_GScholars_Aim
+username:
+account: usefullapps
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10800432
+bundleId: 8050242
+url: https://usefullapps.shinyapps.io/Pubmed_GScholars_Aim/
+when: 1702582079.92632
+lastSyncTime: 1702582079.92633
+asMultiple: FALSE
+asStatic: FALSE
