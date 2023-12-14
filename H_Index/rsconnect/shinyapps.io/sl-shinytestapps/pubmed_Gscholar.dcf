@@ -1,0 +1,13 @@
+name: pubmed_Gscholar
+title: pubmed_Gscholar
+username:
+account: sl-shinytestapps
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10799277
+bundleId: 8049564
+url: https://sl-shinytestapps.shinyapps.io/pubmed_Gscholar/
+when: 1702570723.79414
+lastSyncTime: 1702570723.79415
+asMultiple: FALSE
+asStatic: FALSE

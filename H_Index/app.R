@@ -13,11 +13,11 @@ library(DT)
 library(flexdashboard)
 library(tidyverse)
 
-options(shiny.port = 3044)
+#source("../getfunctions.R")
 
 # Define UI for application that draws a histogram
 ui <- dashboardPage(
-  dashboardHeader(title = "PubMed Search"),
+  dashboardHeader(title = "PubMed Search/Google Scholar Cited"),
   dashboardSidebar(
     sidebarMenu(
       menuItem("Search", tabName = "search"),
@@ -27,11 +27,11 @@ ui <- dashboardPage(
           status = "primary",
           solidHeader = TRUE,
           width = 12,
-          textInput("full_name", "Full Name"),
-          textInput("hire_date", "Hire Date"),
-          textInput("affiliation_1", "Affiliation 1"),
-          textInput("affiliation_2", "Affiliation 2"),
-          textInput("affiliation_3", "Affiliation 3"),
+          textInput("full_name", "Full Name",placeholder = "John Doe"),
+          textInput("hire_date", "Hire Date",placeholder = "01/01/2023"),
+          textInput("affiliation_1", "Affiliation 1", placeholder = "Mount Sinai"),
+          textInput("affiliation_2", "Affiliation 2", placeholder = "University of Florida"),
+          textInput("affiliation_3", "Affiliation 3", placeholder = "University of Washington"),
           actionButton("submit_button", "Submit")
         )
       )

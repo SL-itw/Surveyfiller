@@ -1,0 +1,13 @@
+name: Authors_HIndex
+title: Authors_HIndex
+username:
+account: sl-shinytestapps
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10799159
+bundleId: 8049536
+url: https://sl-shinytestapps.shinyapps.io/Authors_HIndex/
+when: 1702570202.11306
+lastSyncTime: 1702570202.11307
+asMultiple: FALSE
+asStatic: FALSE
