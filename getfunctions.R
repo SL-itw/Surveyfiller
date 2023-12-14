@@ -43,7 +43,17 @@ get_pubmed<- function(name1,
                       affiliation2 = NA,
                       affiliation3 = NA
                       ){
-
+  
+  if (name2==""){
+  name2=NA
+  }
+  if (affiliation2==""){
+    affiliation2=NA
+  }
+  if (affiliation3==""){
+    affiliation3=NA
+  }
+  
  query = query_func(name1 = name1,
                     name2 = name2,
                     affiliation1 = affiliation1,

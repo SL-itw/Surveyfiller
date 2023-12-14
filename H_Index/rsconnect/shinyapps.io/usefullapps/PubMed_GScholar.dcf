@@ -1,0 +1,12 @@
+name: PubMed_GScholar
+title: PubMed_GScholar
+username: usefullapps
+account: usefullapps
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10800294
+bundleId: 8050168
+url: https://usefullapps.shinyapps.io/PubMed_GScholar/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

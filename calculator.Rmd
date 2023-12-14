@@ -14,7 +14,7 @@ knitr::opts_chunk$set( eval = TRUE, warning = FALSE, message = FALSE, echo = T,
                       fig.pos = "!h"
   )
 
-Packages <- c("tidyverse","rgeocodio","arsenal","patchwork","rentrez", "lubridate")
+Packages <- c("tidyverse","arsenal","patchwork","rentrez", "lubridate")
 invisible(lapply(Packages, library, character.only = TRUE))
 
 theme_set(theme_minimal() +

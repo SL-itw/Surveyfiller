@@ -7,13 +7,14 @@
 #    http://shiny.rstudio.com/
 #
 
-library(shiny)
 library(shinydashboard)
 library(DT)
 library(flexdashboard)
 library(tidyverse)
+library(rentrez)
+library(lubridate)
 
-#source("../getfunctions.R")
+source("../getfunctions.R")
 
 # Define UI for application that draws a histogram
 ui <- dashboardPage(
@@ -27,7 +28,8 @@ ui <- dashboardPage(
           status = "primary",
           solidHeader = TRUE,
           width = 12,
-          textInput("full_name", "Full Name",placeholder = "John Doe"),
+          textInput("full_name", "Full Name",placeholder = "Type Full Name"),
+          textInput("full_name2", "Full Name",placeholder = "Type Other Name (If applicable)"),
           textInput("hire_date", "Hire Date",placeholder = "01/01/2023"),
           textInput("affiliation_1", "Affiliation 1", placeholder = "Mount Sinai"),
           textInput("affiliation_2", "Affiliation 2", placeholder = "University of Florida"),
@@ -89,11 +91,12 @@ server <- function(input, output) {
   observeEvent(input$submit_button, {
 
     output_data = article_data(
-    input$full_name,
-    input$hire_date,
-    input$affiliation_1,
-    input$affiliation_2,
-    input$affiliation_3
+    name1=input$full_name,
+    hiredate=input$hire_date,
+    affiliation1 = input$affiliation_1,
+    name2 = input$full_name2,
+    affiliation2 = input$affiliation_2,
+    affiliation3 = input$affiliation_3
   )
 
   h_index = output_data %>%
@@ -103,7 +106,7 @@ server <- function(input, output) {
     pull(h_index)
 
   output$output_table <- renderDT({
-    datatable(output_data %>% select(-h_index,-ind,-n), rownames = FALSE)
+    datatable(output_data, rownames = FALSE)
   })
 
   # Calculate summary values
@@ -111,7 +114,7 @@ server <- function(input, output) {
     valueBox(
 
       value = nrow(output_data),
-      subtitle  = "Total Publications",
+      #subtitle  = "Total Publications",
      # icon = "fa-book"
     )
   })
@@ -119,7 +122,7 @@ server <- function(input, output) {
   output$total_cite_box <- renderValueBox({
     valueBox(
       value = sum(output_data$citations, na.rm = T),
-      subtitle  = "Total Citations",
+      #subtitle  = "Total Citations",
      # icon = "fa-users"
     )
   })
@@ -127,7 +130,7 @@ server <- function(input, output) {
   output$h_index_box <- renderValueBox({
     valueBox(
       value = h_index ,
-      subtitle  = "H Index",
+      #subtitle  = "H Index",
      # icon = "fa-building"
     )
   })
