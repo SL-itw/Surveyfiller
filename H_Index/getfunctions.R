@@ -2,10 +2,10 @@
 # Creates Queries #######################################
 
 query_func = function(name1,
-                      name2,
+                      name2=NA,
                       affiliation1,
-                      affiliation2,
-                      affiliation3){
+                      affiliation2 = NA,
+                      affiliation3 = NA){
  query = tibble(
   name1 = name1,
   name2 = name2,
@@ -27,7 +27,7 @@ query_func = function(name1,
          containerL = if_else(separator == " OR ","(",""),
          containerR = if_else(lag(separator) == " OR ",")",""),
          containerR = if_else(is.na(containerR),"",containerR)) %>%
-  summarize(query = paste0(containerL,input,tag,containerR, separator,collapse = "")) %>% pull(query)
+  dplyr::summarize(query = paste0(containerL,input,tag,containerR, separator,collapse = "")) %>% pull(query)
 
 query
 
@@ -43,7 +43,7 @@ get_pubmed<- function(name1,
                       affiliation2 = NA,
                       affiliation3 = NA
                       ){
-  
+
   if (name2==""){
   name2=NA
   }
@@ -53,7 +53,7 @@ get_pubmed<- function(name1,
   if (affiliation3==""){
     affiliation3=NA
   }
-  
+
  query = query_func(name1 = name1,
                     name2 = name2,
                     affiliation1 = affiliation1,
@@ -88,7 +88,7 @@ get_pubmed<- function(name1,
 # Get Article link ###################################
 get_article_url <- function(title) {
   # Construct the Google Scholar URL
-   paste0("https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=",
+   paste0("https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=",
                          URLencode(title))
 }
 
@@ -99,7 +99,8 @@ get_cited <- function(title){
   article_link = get_article_url(
     title = title
   )
-  page = rvest::read_html(article_link)
+  responce = scholar::get_scholar_resp(attempts_left = 1,url =article_link )
+  page = rvest::read_html(responce)
   cite_string = rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div/div[contains(@class, "gs_ri")]/div[contains(@class, "gs_fl")]//a[contains(text(), "Cited by")]')%>%
     rvest::html_text()
 

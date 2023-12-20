@@ -14,6 +14,8 @@ library(tidyverse)
 library(rentrez)
 library(lubridate)
 source("./getfunctions.R")
+library(polite)
+
 
 # Define UI for application that draws a histogram
 ui <- dashboardPage(
@@ -29,7 +31,7 @@ ui <- dashboardPage(
           width = 12,
           textInput("full_name", "Full Name",placeholder = "Type Full Name"),
           textInput("full_name2", "Full Name",placeholder = "Type Other Name (If applicable)"),
-          textInput("hire_date", "Hire Date",placeholder = "01/01/2023"),
+          textInput("hire_date", "Hire Date",placeholder = "Hire Date"),
           textInput("affiliation_1", "Affiliation 1", placeholder = "Mount Sinai"),
           textInput("affiliation_2", "Affiliation 2", placeholder = "University of Florida"),
           textInput("affiliation_3", "Affiliation 3", placeholder = "University of Washington"),
@@ -101,7 +103,7 @@ server <- function(input, output) {
   h_index = output_data %>%
     mutate(n = length(titles),
            ind = if_else(citations >= n, 1,0)) %>%
-    summarize(h_index = sum(ind, na.rm = T)) %>%
+    dplyr::summarize(h_index = sum(ind, na.rm = T)) %>%
     pull(h_index)
 
   output$output_table <- renderDT({
@@ -111,9 +113,8 @@ server <- function(input, output) {
   # Calculate summary values
   output$total_publications_box <- renderValueBox({
     valueBox(
-
       value = nrow(output_data),
-      #subtitle  = "Total Publications",
+     # subtitle  = "Total Publications"
      # icon = "fa-book"
     )
   })
@@ -121,7 +122,7 @@ server <- function(input, output) {
   output$total_cite_box <- renderValueBox({
     valueBox(
       value = sum(output_data$citations, na.rm = T),
-      #subtitle  = "Total Citations",
+      #subtitle  = "Total Citations"
      # icon = "fa-users"
     )
   })
@@ -129,7 +130,7 @@ server <- function(input, output) {
   output$h_index_box <- renderValueBox({
     valueBox(
       value = h_index ,
-      #subtitle  = "H Index",
+      #subtitle  = "H Index"
      # icon = "fa-building"
     )
   })

@@ -14,7 +14,7 @@ knitr::opts_chunk$set( eval = TRUE, warning = FALSE, message = FALSE, echo = T,
                       fig.pos = "!h"
   )
 
-Packages <- c("tidyverse","arsenal","patchwork","rentrez", "lubridate")
+Packages <- c("tidyverse","arsenal","rentrez", "lubridate","polite","rvest")
 invisible(lapply(Packages, library, character.only = TRUE))
 
 theme_set(theme_minimal() +
@@ -61,16 +61,21 @@ get_pubmed(name1 = "Richa Deshpande",
 
 article_data(name1 = "Richa Deshpande",
            hiredate = "1/3/2023", 
-           affiliation1 = "Mount Sinai") 
+           affiliation1 = "Mount Sinai",
+          name2 = "",
+          affiliation2 = "",
+          affiliation3 = "") 
 
 h_index(name1 = "Richa Deshpande",
            hiredate = "1/3/2023", 
            affiliation1 = "Mount Sinai") 
 
 article_data(name1 = "Steven Lawrence",
+             name2 = "Richa Dashpande",
            hiredate = "1/3/2023", 
            affiliation1 = "Mount Sinai",
-        affiliation2 = "New York University") 
+        affiliation2 = "New York University",
+        affiliation3 = "Medgar Evers") 
               
               
 
@@ -103,17 +108,31 @@ article_link = "https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=Skin+bl
 
 article_link = "https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=Impact+of+New+York+State%27s+Health+Home+program+on+access+to+care+among+patients+with+diabetes.&btnG="
 
-article_link = get_article_url("Skin Bleaching Among African and Afro-Caribbean Women in New York City: Primary Findings from a P30 Pilot Study")
+article_link = "https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=Impact+of+New+York+State%27s+Health+Home+program+on+access+to+care+among+patients+with+diabetes.&btnG="
+
+#https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=Impact+of+New+York+State%27s+Health+Home+program+on+access+to+care+among+patients+with+diabetes.&btnG=
+
+article_link = get_article_url("Toward Safer Opioid Prescribing in HIV care (TOWER): a mixed-methods, cluster-randomized trial.")
+
+# "https://scholar.google.com/scholar?hl=en&as_sdt=0%2C33&q=Impact%20of%20New%20York%20State's%20Health%20Home%20program%20on%20access%20to%20care%20among%20patients%20with%20diabetes."
+
 page <- rvest::read_html(article_link)
-rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div/div/div[3]/a[3]')
+XML::htmlTreeParse(page) %>% XML::xmlNode('//*[@id="gs_res_ccl_mid"]/div[contains(@class, "gs_fl")]//a[contains(text(), "Cited by")]')
+
+rvest::html_node(page, xpath = '/html/body/div/div[@id="gs_bdy"]/div[@id="gs_bdy_ccl"]')
 
 rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div[contains(@class, "gs_fl")]//a[contains(text(), "Cited by")]') %>% rvest::html_text()
+
+
+rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]')# %>% rvest::html_text()
+
+
 rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div/div[2]/div[5]/a[3]') %>% rvest::html_text()
 
 node <- rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div/div/div[3]/a[3]')
 cited_by_count <- rvest::html_text(node) 
 
-get_cited("Impact of New York State's Health Home program on access to care among patients with diabetes.")
+get_cited("Phenotyping autonomic neuropathy using principal component analysis.")
 
 
 ```
@@ -122,9 +141,49 @@ get_cited("Impact of New York State's Health Home program on access to care amon
 
 ```{r}
 
+session = polite::bow("", force = T)
+
+session = polite::bow("https://www.cheese.com/by_type", force = T)
+
+scrape(session, query=list(t="semi-soft", per_page=1)) %>%
+  html_node('//*[@id="gs_res_ccl_mid"]/div[contains(@class, "gs_fl")]//a[contains(text(), "Cited by")]') %>% 
+  html_text()
+
+#\code{\link{get_scholar_resp}} fun
+
+
+
+curl --get https://serpapi.com/search \
+ -d engine="google_scholar_author" \
+ -d view_op="view_citation" \
+ -d citation_id="LSsXyncAAAAJ:9yKSN-GCB0IC" \
+ -d api_key="secret_api_key"
+
+article_link = get_article_url("Phenotyping autonomic neuropathy using principal component analysis.")
+
+page = scholar::get_scholar_resp(attempts_left = 1,url =article_link )
+
+page2 = rvest::read_html(page)
+rvest::html_node(page2, xpath = '//*[@id="gs_res_ccl_mid"]/div/div[contains(@class, "gs_ri")]/div[contains(@class, "gs_fl")]//a[contains(text(), "Cited by")]')%>%
+    rvest::html_text()
+```
+
+```{r}
+https://link.springer.com/article/10.1186/s12874-022-01608-7
+query = query_func(name1 = "Steven Lawrence",
+            affiliation1 = "Mount Sinai",
+           affiliation2 = "New York University")
+
+# queries author article ID's by name
+  ids <- entrez_search("pubmed", query, retmax = 10000)$ids
+
+  # pulls records by ID's
+  rec<-  entrez_fetch("pubmed", ids[7], rettype = "xml")
+
+  # parses meta information
+  parsed <- XML::xmlTreeParse(rec, useInternalNodes = TRUE)
 
 
 
 ```
-
 
