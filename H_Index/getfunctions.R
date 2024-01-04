@@ -6,6 +6,17 @@ query_func = function(name1,
                       affiliation1,
                       affiliation2 = NA,
                       affiliation3 = NA){
+
+  if (name2==""){
+    name2=NA
+  }
+  if (affiliation2==""){
+    affiliation2=NA
+  }
+  if (affiliation3==""){
+    affiliation3=NA
+  }
+
  query = tibble(
   name1 = name1,
   name2 = name2,
@@ -36,53 +47,25 @@ query
 
 # Gets Publications #######################################
 
-get_pubmed<- function(name1,
-                      hiredate,
-                      affiliation1,
-                      name2= NA,
-                      affiliation2 = NA,
-                      affiliation3 = NA
-                      ){
-
-  if (name2==""){
-  name2=NA
-  }
-  if (affiliation2==""){
-    affiliation2=NA
-  }
-  if (affiliation3==""){
-    affiliation3=NA
-  }
-
- query = query_func(name1 = name1,
-                    name2 = name2,
-                    affiliation1 = affiliation1,
-                    affiliation2 = affiliation2,
-                    affiliation3 = affiliation3)
-
-
-  # queries author article ID's by name
-  ids <- entrez_search("pubmed", query, retmax = 10000)$ids
-
-  # pulls records by ID's
-  rec<-  entrez_fetch("pubmed", ids, rettype = "xml")
+get_pubmed <- function(recs, hiredate){
 
   # parses meta information
-  parsed <- XML::xmlTreeParse(rec, useInternalNodes = TRUE)
+  parsed <- XML::xmlTreeParse(recs, useInternalNodes = TRUE)
 
   specific_date = lubridate::mdy(hiredate)
   two_years_prior_date <- specific_date %m-% years(2)
 
   cbind(
   titles = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//ArticleTitle')),
-  pubdates = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/PubmedData/History/PubMedPubDate[@PubStatus="pubmed"]'))
+  pubdates = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/PubmedData/History/PubMedPubDate[@PubStatus="pubmed"]')),
+  PUBid = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation/PMID')) %>% tibble() %>% rename("PUBid"="text" )
 
   ) %>% tibble() %>%
     mutate(date = paste(pubdates.Month,pubdates.Day,pubdates.Year, sep = "/") %>% lubridate::mdy()
     ) %>%
     filter(date >= two_years_prior_date & date < specific_date) %>%
     rename("titles" = "text") %>%
-    select(titles, date)
+    select(PUBid, titles, date)
   }
 
 # Get Article link ###################################
@@ -99,7 +82,7 @@ get_cited <- function(title){
   article_link = get_article_url(
     title = title
   )
-  responce = scholar::get_scholar_resp(attempts_left = 1,url =article_link )
+  responce = scholar::get_scholar_resp(attempts_left = 1, url =article_link )
   page = rvest::read_html(responce)
   cite_string = rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div/div[contains(@class, "gs_ri")]/div[contains(@class, "gs_fl")]//a[contains(text(), "Cited by")]')%>%
     rvest::html_text()
@@ -108,48 +91,73 @@ get_cited <- function(title){
 
 }
 
+# Get citations from pubmed ################
+
+pub_citefunc <- function(id){
+
+
+  cite_link = paste0("https://pubmed.ncbi.nlm.nih.gov/?linkname=pubmed_pubmed_citedin&from_uid=",id)
+  session = polite::bow(cite_link, force = T)
+  page = polite::scrape(session, query=list(t="semi-soft", per_page=1))
+
+  count = (rvest::html_node(page, xpath = '/html/body/main/div[9]/div[2]/div[2]/div[1]/div[1]/h3/span') |>
+             rvest::html_text() |>
+             as.numeric())-1
+
+  count
+  }
 
 # Get full data #######################
 
-article_data <- function(name1,
-                         hiredate,
-                         affiliation1,
-                         name2= NA,
-                         affiliation2 = NA,
-                         affiliation3 = NA){
+article_data <- function(recs,
+                         hiredate){
 
-  get_pubmed(name1 = name1,
-             hiredate = hiredate,
-             affiliation1 = affiliation1,
-             name2 = name2,
-             affiliation2 = affiliation2,
-             affiliation3 = affiliation3
-            ) %>%
-    mutate(citations = map(titles,get_cited)) %>%
-    unnest(citations)
+  tab= get_pubmed(recs = recs,
+             hiredate = hiredate)
+  cores <- parallel::makeCluster(parallel::detectCores())
+
+  ids = tab %>% pull(PUBid)
+
+  citations= parallel::parLapply(cores,ids,pub_citefunc) %>% tibble() %>%
+    unnest() %>%
+    rename("citations" = ".") %>%
+    mutate(citations= replace_na(citations,0)) %>%
+    pull(citations)
+
+  tab %>% mutate(citations = citations)
+
 
 }
 
-# Get H-index ##############
 
-h_index <- function(name1,
-                    hiredate,
-                    affiliation1,
-                    name2= NA,
-                    affiliation2 = NA,
-                    affiliation3 = NA){
+# Getting unique co authors ###################
 
+coauthor_func <- function(row,recs){
 
-  article_data(name1 = name1,
-               hiredate = hiredate,
-               affiliation1 = affiliation1,
-               name2 = name2,
-               affiliation2 = affiliation2,
-               affiliation3 = affiliation3) %>%
-    mutate(n = length(titles),
-           ind = if_else(citations >= n, 1,0)) %>%
-    summarize(h_index = sum(ind, na.rm = T)) %>%
-    pull(h_index)
+  rec = recs[row]
+  parsed = XML::xmlTreeParse(rec, useInternalNodes = TRUE)
+
+  tibble(forename = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/ForeName')) ,
+         Lastname = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/LastName')) ) %>%
+    unnest(cols = c(forename, Lastname)) %>%
+    rename(  "forename" = "text",  "lastname" = "text1" )
+
 }
 
+get_coauthor_count<- function(ids, recs){
 
+  recs = recs
+
+coauthor_table = tibble(
+  rows = c(1:length(ids))
+) %>%
+  mutate(outcome = map(rows,coauthor_func)) %>%
+  unnest(cols = c(outcome)) %>%
+  separate(forename, into = c("firstname","x"),sep = " ") %>%
+  select(-rows, -x) %>%
+  unique() %>%
+  arrange(firstname) %>%
+  summarize(n = n()-1) %>%
+  pull(n)
+
+}

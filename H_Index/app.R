@@ -19,6 +19,7 @@ library(polite)
 
 # Define UI for application that draws a histogram
 ui <- dashboardPage(
+
   dashboardHeader(title = "PubMed Search/Google Scholar Cited"),
   dashboardSidebar(
     sidebarMenu(
@@ -41,6 +42,7 @@ ui <- dashboardPage(
     )
   ),
   dashboardBody(
+
     tabItems(
       tabItem(
         tabName = "search",
@@ -52,13 +54,13 @@ ui <- dashboardPage(
             width = 4,
             valueBoxOutput("total_publications_box")
           ),
-          box(
-            title = "Total Citations",
-            status = "info",
-            solidHeader = TRUE,
-            width = 4,
-            valueBoxOutput("total_cite_box")
-          ),
+          # box(
+          #   title = "Total Unique Coauthors",
+          #   status = "info",
+          #   solidHeader = TRUE,
+          #   width = 4,
+          #   valueBoxOutput("uniquecoauthors")
+          #),
           box(
             title = "H Index",
             status = "info",
@@ -89,22 +91,51 @@ ui <- dashboardPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+
+
+
   observeEvent(input$submit_button, {
 
-    output_data = article_data(
-    name1=input$full_name,
-    hiredate=input$hire_date,
-    affiliation1 = input$affiliation_1,
-    name2 = input$full_name2,
-    affiliation2 = input$affiliation_2,
-    affiliation3 = input$affiliation_3
-  )
+    # global variables
+    query  = query_func(
 
-  h_index = output_data %>%
+      name1 =input$full_name,
+      name2 = input$full_name2,
+      affiliation1 = input$affiliation_1,
+      affiliation2 = input$affiliation_2,
+      affiliation3 = input$affiliation_3
+    )
+
+    ids =  entrez_search("pubmed", query, retmax = 10000)$ids
+    recs = entrez_fetch("pubmed", ids, rettype = "xml")
+    hiredate = input$hire_date
+
+    # main table
+    withProgress(
+      message = 'Loading data...',
+      detail = 'This may take a while...',
+      value = 0,{
+     output_data = article_data(recs, hiredate)
+
+     for (i in 1:100) {
+       incProgress(1/100)
+       Sys.sleep(0.1)
+      }
+
+     return(output_data)
+      }
+     )
+
+    # aggregate calculations
+
+     h_index = output_data %>%
     mutate(n = length(titles),
            ind = if_else(citations >= n, 1,0)) %>%
     dplyr::summarize(h_index = sum(ind, na.rm = T)) %>%
     pull(h_index)
+
+   #  coauthor_count = get_coauthor_count(ids, recs)
+
 
   output$output_table <- renderDT({
     datatable(output_data, rownames = FALSE)
@@ -119,13 +150,12 @@ server <- function(input, output) {
     )
   })
 
-  output$total_cite_box <- renderValueBox({
-    valueBox(
-      value = sum(output_data$citations, na.rm = T),
-      #subtitle  = "Total Citations"
-     # icon = "fa-users"
-    )
-  })
+  # output$uniquecoauthors <- renderValueBox({
+  #   valueBox(
+  #     value = coauthor_count,
+  #    # icon = "fa-users"
+  #   )
+  # })
 
   output$h_index_box <- renderValueBox({
     valueBox(

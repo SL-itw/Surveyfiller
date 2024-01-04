@@ -169,7 +169,7 @@ rvest::html_node(page2, xpath = '//*[@id="gs_res_ccl_mid"]/div/div[contains(@cla
 ```
 
 ```{r}
-https://link.springer.com/article/10.1186/s12874-022-01608-7
+#https://link.springer.com/article/10.1186/s12874-022-01608-7
 query = query_func(name1 = "Steven Lawrence",
             affiliation1 = "Mount Sinai",
            affiliation2 = "New York University")
@@ -178,12 +178,116 @@ query = query_func(name1 = "Steven Lawrence",
   ids <- entrez_search("pubmed", query, retmax = 10000)$ids
 
   # pulls records by ID's
-  rec<-  entrez_fetch("pubmed", ids[7], rettype = "xml")
+  rec<-  entrez_fetch("pubmed", ids[4], rettype = "xml")
 
   # parses meta information
   parsed <- XML::xmlTreeParse(rec, useInternalNodes = TRUE)
 
+XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author')) %>% 
+  data.frame() %>% 
+  select(LastName, ForeName) 
 
 
+
+
+
+
+
+
+
+
+
+
+## co author's name can change i.e: marriage occurs
+## co author's can have the same name thus won't count as 2 separate names 
+```
+
+
+```{r}
+
+query = query_func(name1 = "Nihal Mohammed", affiliation1 = "Mount Sinai", name2 = "", affiliation2 = "", affiliation3 = "")
+
+article_title = "Circadian Rhythm Disruption as a Contributor to Racial Disparities in Prostate Cancer."
+
+article_link = get_article_url(article_title)
+
+responce = scholar::get_scholar_resp(attempts_left = 1, url =article_link )
+page = rvest::read_html(responce)
+  cite_string = rvest::html_node(page, xpath = '//*[@id="gs_res_ccl_mid"]/div/div[contains(@class, "gs_ri")]/div[contains(@class, "gs_fl")]//a[contains(text(), "Cited by")]')%>%
+  
+    rvest::html_text()
+  
+  rvest::html_node(page, xpath = '/html/body/div/div[10]')
+  
+ids =  entrez_search("pubmed", query, retmax = 10000)$ids
+#37923971
+
+recs = entrez_fetch("pubmed", ids, rettype = "xml")
+parsed <- XML::xmlTreeParse(recs, useInternalNodes = TRUE)
+XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation/PMID'))
+
+pub_citefunc(37923971)
+
+```
+
+```{r}
+
+num_cores <- parallel::detectCores()  # This detects the number of available cores
+
+# Set up a cluster using the detected number of cores
+cl <- parallel::makeCluster(num_cores)
+# Parallelize the function using the 'parLapply' function
+result_parallel <- parallel::parLapply()cl = cl, article_data(recs, "01/01/2023"))
+
+# Close the cluster after finishing computations
+stopCluster(cl)
+
+  citatations= parallel::parLapply(cl,ids,pub_citefunc) 
+  
+  citatations %>% tibble() %>% 
+    unnest() %>% 
+    rename("citations" = ".") %>% 
+    mutate(citations= replace_na(citations,0))
+```
+
+```{r}
+page = rvest::read_html( "https://pubmed.ncbi.nlm.nih.gov/36291899/")
+#/html/body/div[5]/main/div[7]/ul
+node = rvest::html_node(page, xpath = '/html/body/div[5]/main/div[6]/ul' )
+
+node %>% as.character() %>% stringr::str_count(pattern = "<li")
+
+#https://pubmed.ncbi.nlm.nih.gov/37307284/
+
+rvest::html_node("https://pubmed.ncbi.nlm.nih.gov/?linkname=pubmed_pubmed_citedin&from_uid=37307284")
+
+#https://pubmed.ncbi.nlm.nih.gov/?linkname=pubmed_pubmed_citedin&from_uid=
+
+pub_citefunc <- function(id){
+  
+
+cite_link = paste0("https://pubmed.ncbi.nlm.nih.gov/?linkname=pubmed_pubmed_citedin&from_uid=",id)
+session = polite::bow(cite_link, force = T)
+ page = scrape(session, query=list(t="semi-soft", per_page=1)) 
+
+
+(rvest::html_node(page, xpath = '/html/body/main/div[9]/div[2]/div[2]/div[1]/div[1]/h3/span') %>% rvest::html_text() %>% as.numeric())-1
+}
+
+tab = tibble(
+  ids = ids[10:35]
+) %>% 
+  mutate(outcome = map(ids, pub_citefunc)) %>% 
+  unnest(outcome)
+
+
+cite_link = paste0("https://pubmed.ncbi.nlm.nih.gov/?linkname=pubmed_pubmed_citedin&from_uid=",37645610)
+session = polite::bow(cite_link, force = T)
+ page = scrape(session, query=list(t="semi-soft", per_page=1)) 
+ 
+ rvest::html_node(page, xpath = '/html/body/main/div[9]/div[2]/div[2]/div[1]/div[1]/h3/span') %>% rvest::html_text() 
+ 
+ ## Need to set up a multi threading function that will run the function using separate threads when there are more than 5 articles. 
+ 
 ```
 
