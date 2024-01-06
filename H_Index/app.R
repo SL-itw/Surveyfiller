@@ -54,13 +54,13 @@ ui <- dashboardPage(
             width = 4,
             valueBoxOutput("total_publications_box")
           ),
-          # box(
-          #   title = "Total Unique Coauthors",
-          #   status = "info",
-          #   solidHeader = TRUE,
-          #   width = 4,
-          #   valueBoxOutput("uniquecoauthors")
-          #),
+          box(
+            title = "Total Unique Coauthors",
+            status = "info",
+            solidHeader = TRUE,
+            width = 4,
+            valueBoxOutput("uniquecoauthors")
+          ),
           box(
             title = "H Index",
             status = "info",
@@ -79,6 +79,15 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             width = 12,
             DTOutput("output_table") # Placeholder for the output table
+          )
+        ),br(),
+        fluidRow(
+          box(
+            title = "Unique Co Authors",
+            status = "primary",
+            solidHeader = TRUE,
+            width = 12,
+            DTOutput("coauthor_table") # Placeholder for the output table
           )
         )
       )
@@ -134,11 +143,16 @@ server <- function(input, output) {
     dplyr::summarize(h_index = sum(ind, na.rm = T)) %>%
     pull(h_index)
 
-   #  coauthor_count = get_coauthor_count(ids, recs)
+    coauthor_data = get_coauthor_count(recs)
+    coauthor_count = coauthor_data[2]
 
 
   output$output_table <- renderDT({
     datatable(output_data, rownames = FALSE)
+  })
+
+  output$coauthor_table <- renderDT({
+    datatable(coauthor_data[1]  %>% tibble() %>% unnest(cols = c(.)), rownames = FALSE)
   })
 
   # Calculate summary values
@@ -150,12 +164,12 @@ server <- function(input, output) {
     )
   })
 
-  # output$uniquecoauthors <- renderValueBox({
-  #   valueBox(
-  #     value = coauthor_count,
-  #    # icon = "fa-users"
-  #   )
-  # })
+  output$uniquecoauthors <- renderValueBox({
+    valueBox(
+      value = coauthor_count,
+     # icon = "fa-users"
+    )
+  })
 
   output$h_index_box <- renderValueBox({
     valueBox(

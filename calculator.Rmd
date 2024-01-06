@@ -291,3 +291,32 @@ session = polite::bow(cite_link, force = T)
  
 ```
 
+```{r}
+
+
+
+get_coauthor_count<- function(recs){
+
+  parsed = XML::xmlTreeParse(recs, useInternalNodes = TRUE)
+
+names = cbind(forename = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/ForeName')) ,
+         Lastname = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/LastName')) )
+  colnames(names) = c("forename","lastname")
+
+n = names %>% 
+  separate(forename, into = c("firstname","x"),sep = " ") %>%
+  select( -x) %>%
+  unique() %>%
+  arrange(firstname) %>%
+  summarize(n = n()-1) %>%
+  pull(n)
+
+list(names,n)
+
+}
+
+co_tab = get_coauthor_count(recs=recs)
+
+co_tab[1] %>% tibble() %>% unnest(cols = c(.))
+```
+

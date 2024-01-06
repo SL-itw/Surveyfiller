@@ -132,32 +132,23 @@ article_data <- function(recs,
 
 # Getting unique co authors ###################
 
-coauthor_func <- function(row,recs){
+get_coauthor_count<- function(recs){
 
-  rec = recs[row]
-  parsed = XML::xmlTreeParse(rec, useInternalNodes = TRUE)
+  parsed = XML::xmlTreeParse(recs, useInternalNodes = TRUE)
 
-  tibble(forename = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/ForeName')) ,
-         Lastname = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/LastName')) ) %>%
-    unnest(cols = c(forename, Lastname)) %>%
-    rename(  "forename" = "text",  "lastname" = "text1" )
+  names = cbind(forename = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/ForeName')) ,
+                Lastname = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/LastName')) )
+  colnames(names) = c("forename","lastname")
 
-}
+  name_tab = names %>%
+    separate(forename, into = c("firstname","x"),sep = " ") %>%
+    select( -x) %>%
+    arrange(lastname) %>%
+    unique()
 
-get_coauthor_count<- function(ids, recs){
+  n = name_tab %>%
+    summarize(n = n()-1) %>%
+    pull(n)
 
-  recs = recs
-
-coauthor_table = tibble(
-  rows = c(1:length(ids))
-) %>%
-  mutate(outcome = map(rows,coauthor_func)) %>%
-  unnest(cols = c(outcome)) %>%
-  separate(forename, into = c("firstname","x"),sep = " ") %>%
-  select(-rows, -x) %>%
-  unique() %>%
-  arrange(firstname) %>%
-  summarize(n = n()-1) %>%
-  pull(n)
-
+  list(name_tab,n)
 }

@@ -5,9 +5,9 @@ account: usefullapps
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 10800432
-bundleId: 8070085
+bundleId: 8109279
 url: https://usefullapps.shinyapps.io/Pubmed_GScholars_Aim/
-when: 1703094176.11741
-lastSyncTime: 1703094176.11743
+when: 1704391050.26329
+lastSyncTime: 1704391050.2633
 asMultiple: FALSE
 asStatic: FALSE
