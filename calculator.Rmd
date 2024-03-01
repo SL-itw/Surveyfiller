@@ -205,7 +205,7 @@ XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCita
 
 ```{r}
 
-query = query_func(name1 = "Nihal Mohammed", affiliation1 = "Mount Sinai", name2 = "", affiliation2 = "", affiliation3 = "")
+query = query_func(name1 = "Emma Benn", affiliation1 = "Mount Sinai", name2 = "", affiliation2 = "", affiliation3 = "")
 
 article_title = "Circadian Rhythm Disruption as a Contributor to Racial Disparities in Prostate Cancer."
 
@@ -219,7 +219,7 @@ page = rvest::read_html(responce)
   
   rvest::html_node(page, xpath = '/html/body/div/div[10]')
   
-ids =  entrez_search("pubmed", query, retmax = 10000)$ids
+ids =  entrez_search("pubmed", paste0(query," ","AND"," ","('2023/01/01'[Date - Publication]:'2024/01/01'[Date - Publication])"), retmax = 10000)$ids
 #37923971
 
 recs = entrez_fetch("pubmed", ids, rettype = "xml")
@@ -315,8 +315,138 @@ list(names,n)
 
 }
 
-co_tab = get_coauthor_count(recs=recs)
+ hiredate = "01/01/2024"
+    specific_date = lubridate::mdy(hiredate)
+    two_years_prior_date <- specific_date %m-% years(2)
+    
+co_tab = get_coauthor_count(ids,two_years_prior_date,specific_date)
 
-co_tab[1] %>% tibble() %>% unnest(cols = c(.))
+
+
+article_data(parsed)
+
+
+```
+
+```{r}
+query = query_func("Emma Benn", "", affiliation1 = "Mount Sinai", affiliation2 = "Columbia University", affiliation3 = "")
+
+ids =  entrez_search( "pubmed", query, retmax = 10000)$ids
+recs = entrez_fetch("pubmed", ids, rettype = "xml")
+parsed = XML::xmlTreeParse(recs, useInternalNodes = TRUE)
+
+tab = article_data(parsed)
+
+tab %>% 
+ # unnest(citations) %>% 
+  arrange(-citations) %>%
+ mutate(order = dplyr::row_number(),
+           ind = if_else(citations >= order, 1,0)) %>%
+    dplyr::summarize(h_index = sum(ind, na.rm = T)) %>% 
+    pull(h_index)
+```
+
+
+```{r}
+
+names = cbind(forename = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/ForeName')) ,
+                Lastname = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/LastName')),
+                pubdates = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/PubmedData/History/PubMedPubDate[@PubStatus="pubmed"]')))
+
+tibble(forenames =  XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/ForeName')),
+       lastnames = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/LastName')),
+       dates = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/PubmedData/History/PubMedPubDate[@PubStatus="pubmed"]')) )
+
+  colnames(names) = c("forename","lastname","dates")
+  
+  name_tab = names %>%
+    tibble() %>%
+    mutate(date = paste(pubdates.Month,pubdates.Day,pubdates.Year, sep = "/") %>% lubridate::mdy()
+    ) %>%
+    separate(forename, into = c("firstname","x"),sep = " ") %>%
+    select( -x) %>%
+    arrange(lastname) %>%
+    unique()
+
+  n = name_tab %>%
+    summarize(n = n()-1) %>%
+    pull(n)
+
+  list(name_tab,n)
+```
+
+```{r}
+
+
+
+cite_link = paste0("https://pubmed.ncbi.nlm.nih.gov/?linkname=pubmed_pubmed_citedin&from_uid=",33481113)
+
+page =
+    polite::bow(cite_link, force = T) %>%
+      polite::scrape(query = list(t = "semi-soft", per_page = 1))
+
+/html/body/main/div[9]/div[2]/div[2]/div[1]/div[1]/h3/span
+//*[@id="search-results"]/div[2]/div[1]/div[1]/h3/span
+//*[@id="search-results"]/div[2]/div[1]/div[1]
+//*[@id="search-results"]/div[2]/div[1]/div[1]/h3/span
+//*[@id="search-results"]/div[2]/div[1]/div[1]/h3/span
+ rvest::html_node(page, xpath = '//*[@id="search-results"]/div[2]/div[1]/div[1]/h3/span') %>% 
+   rvest::html_text()
+
+```
+
+```{r}
+require(bibliometrix)
+bibliometrix::retrievalByAuthorID(23670104100)
+```
+
+```{r}
+query = query_func("Emma Benn", "", affiliation1 = "Mount Sinai", affiliation2 = "Columbia University", affiliation3 = "")
+ids =  entrez_search("pubmed", paste0(query," ","AND"," ","('2008/01/01'[Date - Publication]:'2024/01/01'[Date - Publication])"), retmax = 10000)$ids
+recs = entrez_fetch("pubmed", ids, rettype = "xml")
+parsed <- XML::xmlTreeParse(recs, useInternalNodes = TRUE)
+
+tibble(
+  PUBid = ids
+) %>% 
+mutate(citations = map(PUBid,pub_citefunc)) %>% 
+  unnest(citations) %>% 
+  arrange(-citations)
+```
+
+```{r}
+
+
+tibble(name1 = c("Steven","Emma"), 
+       name2 = c("Lawrence", "Benn"), 
+       affiliation1 = c("Mount Sinai","Mount Sinai"), 
+       affiliation2 = c("",""), 
+       affiliation3 = c("","")
+       ) %>% 
+  query_list() %>% 
+  
+  mutate(qdata  = map(query,query_data))
+
+s=tibble(name1 = c("Steven Lawrence","Emma Benn"), 
+       name2 = c("", ""), 
+       affiliation1 = c("Mount Sinai","Mount Sinai"), 
+       affiliation2 = c("New York University","Columbia University"), 
+       affiliation3 = c("","")
+       ) %>% 
+  batch_metrics() 
+
+p1 =s$parsed[1] %>% 
+  paste() %>% 
+  xml2::read_xml()
+  xml2::as_xml_document()
+
+XML::xmlToDataFrame(nodes = XML::getNodeSet(p1, '//PubmedArticle/MedlineCitation//ArticleTitle'))
+  article_data(p1)
+
+s %>% 
+  unnest(results) %>% 
+  group_by(name1) %>% 
+  arrange( name1,-citations,)
+  
 ```
 

@@ -47,13 +47,10 @@ query
 
 # Gets Publications #######################################
 
-get_pubmed <- function(recs, hiredate){
+get_pubmed <- function(parsed){
 
-  # parses meta information
-  parsed <- XML::xmlTreeParse(recs, useInternalNodes = TRUE)
 
-  specific_date = lubridate::mdy(hiredate)
-  two_years_prior_date <- specific_date %m-% years(2)
+
 
   cbind(
   titles = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//ArticleTitle')),
@@ -63,7 +60,7 @@ get_pubmed <- function(recs, hiredate){
   ) %>% tibble() %>%
     mutate(date = paste(pubdates.Month,pubdates.Day,pubdates.Year, sep = "/") %>% lubridate::mdy()
     ) %>%
-    filter(date >= two_years_prior_date & date < specific_date) %>%
+
     rename("titles" = "text") %>%
     select(PUBid, titles, date)
   }
@@ -96,52 +93,81 @@ get_cited <- function(title){
 pub_citefunc <- function(id){
 
 
+
   cite_link = paste0("https://pubmed.ncbi.nlm.nih.gov/?linkname=pubmed_pubmed_citedin&from_uid=",id)
-  session = polite::bow(cite_link, force = T)
-  page = polite::scrape(session, query=list(t="semi-soft", per_page=1))
 
-  count = (rvest::html_node(page, xpath = '/html/body/main/div[9]/div[2]/div[2]/div[1]/div[1]/h3/span') |>
-             rvest::html_text() |>
-             as.numeric())-1
+  session = polite::bow(cite_link, delay = 5, times = 5)
 
-  count
+ # Sys.sleep(5)
+
+  page = polite::scrape(session, query = list(t = "semi-soft", per_page = 1))
+
+  #close(page)
+  if(!is.null(page)){
+    count =  as.numeric(
+      rvest::html_text(
+        rvest::html_node(page, xpath = "//*[@id='search-results']//h3/span") )
+     ) - 1
+  }else{
+    count = NA
   }
+
+count
+
+}
 
 # Get full data #######################
 
-article_data <- function(recs,
-                         hiredate){
+article_data <- function(parsed){
 
-  tab= get_pubmed(recs = recs,
-             hiredate = hiredate)
-  cores <- parallel::makeCluster(parallel::detectCores())
+  tab = get_pubmed(parsed) #%>%
+  cores = parallel::makeCluster(parallel::detectCores())
+  PUBids = tab %>% pull(PUBid)
 
-  ids = tab %>% pull(PUBid)
-
-  citations= parallel::parLapply(cores,ids,pub_citefunc) %>% tibble() %>%
-    unnest() %>%
+  #mutate(citations = map(PUBid,pub_citefunc))# %>%
+  citations= parallel::parLapply(cores,PUBids,pub_citefunc) %>% tibble() %>%
+    unnest(cols = c(.)) %>%
+   #unnest(cols = c(citations)) %>%
     rename("citations" = ".") %>%
-    mutate(citations= replace_na(citations,0)) %>%
+    mutate(citations= replace_na(citations,0))  %>%
     pull(citations)
 
-  tab %>% mutate(citations = citations)
+ tab %>% mutate(citations = citations)
 
 
 }
 
-
 # Getting unique co authors ###################
 
-get_coauthor_count<- function(recs){
 
-  parsed = XML::xmlTreeParse(recs, useInternalNodes = TRUE)
+get_single_coauthor = function(id){
 
-  names = cbind(forename = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/ForeName')) ,
-                Lastname = XML::xmlToDataFrame(nodes = XML::getNodeSet(parsed, '//PubmedArticle/MedlineCitation//AuthorList/Author/LastName')) )
+  rec = entrez_fetch("pubmed", id, rettype = "xml")
+  parse = XML::xmlTreeParse(rec, useInternalNodes = TRUE)
+
+  names = cbind(forename = XML::xmlToDataFrame(nodes = XML::getNodeSet(parse, '//PubmedArticle/MedlineCitation//AuthorList/Author/ForeName')) ,
+                Lastname = XML::xmlToDataFrame(nodes = XML::getNodeSet(parse, '//PubmedArticle/MedlineCitation//AuthorList/Author/LastName')))
   colnames(names) = c("forename","lastname")
 
-  name_tab = names %>%
+  date = pubdates = XML::xmlToDataFrame(nodes = XML::getNodeSet(parse, '//PubmedArticle/PubmedData/History/PubMedPubDate[@PubStatus="pubmed"]'))
+  tibble(names, date)
+
+  }
+# Get co author
+get_coauthor_count<- function(ids,two_years_prior_date,specific_date){
+
+  name_tab =  tibble(
+    id = ids
+  ) %>%
+    mutate(coauthors = map(id,get_single_coauthor)) %>%
+    unnest(coauthors) %>%
+    mutate(date = paste(Month,Day,Year, sep = "/") %>% lubridate::mdy()
+    ) %>%
+    select(id, forename, lastname, date) %>%
+    filter(date >= two_years_prior_date & date < specific_date) %>%
+    select(forename, lastname) %>%
     separate(forename, into = c("firstname","x"),sep = " ") %>%
+    separate(firstname, into = c("firstname","x"),sep = "-") %>%
     select( -x) %>%
     arrange(lastname) %>%
     unique()
@@ -151,4 +177,35 @@ get_coauthor_count<- function(recs){
     pull(n)
 
   list(name_tab,n)
+}
+
+
+# Batch function --------------
+
+query_list = function(data){
+
+  data %>%
+    mutate(query = purrr::pmap(.,query_func))
+
+}
+
+query_data<- function(query){
+
+  ids =  entrez_search("pubmed", query, retmax = 10000)$ids
+  recs = entrez_fetch("pubmed", ids, rettype = "xml")
+  parsed = XML::xmlTreeParse(recs, useInternalNodes = TRUE)
+
+  article_data(parsed)
+
+}
+
+batch_metrics<- function(data){
+
+
+    query_list(data = data) %>%
+    unnest(col = c(query)) %>%
+    mutate(results = map(query, query_data))
+
+
+
 }

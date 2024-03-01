@@ -1,11 +1,3 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
 
 library(shinydashboard)
 library(DT)
@@ -15,12 +7,13 @@ library(rentrez)
 library(lubridate)
 source("./getfunctions.R")
 library(polite)
+library(XML)
 
 
 # Define UI for application that draws a histogram
 ui <- dashboardPage(
 
-  dashboardHeader(title = "PubMed Search/Google Scholar Cited"),
+  dashboardHeader(title = "Publication Metrics"),
   dashboardSidebar(
     sidebarMenu(
       menuItem("Search", tabName = "search"),
@@ -30,12 +23,12 @@ ui <- dashboardPage(
           status = "primary",
           solidHeader = TRUE,
           width = 12,
-          textInput("full_name", "Full Name",placeholder = "Type Full Name"),
-          textInput("full_name2", "Full Name",placeholder = "Type Other Name (If applicable)"),
+          textInput("full_name", "Full Name",placeholder = "First and Last Name"),
+          textInput("full_name2", "Full Name",placeholder = "Other Name (Optional)"),
           textInput("hire_date", "Hire Date",placeholder = "Hire Date"),
-          textInput("affiliation_1", "Affiliation 1", placeholder = "Mount Sinai"),
-          textInput("affiliation_2", "Affiliation 2", placeholder = "University of Florida"),
-          textInput("affiliation_3", "Affiliation 3", placeholder = "University of Washington"),
+          textInput("affiliation_1", "Affiliation 1", placeholder = "Affiliation"),
+          textInput("affiliation_2", "Affiliation 2", placeholder = "Affiliation"),
+          textInput("affiliation_3", "Affiliation 3", placeholder = "Affiliation"),
           actionButton("submit_button", "Submit")
         )
       )
@@ -48,7 +41,7 @@ ui <- dashboardPage(
         tabName = "search",
         fluidRow(
           box(
-            title = "Total Publications",
+            title = "Total Publications 2 year prior",
             status = "info",
             solidHeader = TRUE,
             width = 4,
@@ -115,16 +108,23 @@ server <- function(input, output) {
       affiliation3 = input$affiliation_3
     )
 
-    ids =  entrez_search("pubmed", query, retmax = 10000)$ids
-    recs = entrez_fetch("pubmed", ids, rettype = "xml")
+
     hiredate = input$hire_date
+    specific_date = lubridate::mdy(hiredate)
+    two_years_prior_date <- specific_date %m-% years(2)
 
     # main table
     withProgress(
       message = 'Loading data...',
-      detail = 'This may take a while...',
+      detail = 'You have a lot of publications...',
       value = 0,{
-     output_data = article_data(recs, hiredate)
+
+        ids =  entrez_search("pubmed", query, retmax = 10000)$ids
+        recs = entrez_fetch("pubmed", ids, rettype = "xml")
+        # parses meta information
+        parsed = XML::xmlTreeParse(recs, useInternalNodes = TRUE)
+        output_data = article_data(parsed)
+        coauthor_data = get_coauthor_count(ids,two_years_prior_date,specific_date)
 
      for (i in 1:100) {
        incProgress(1/100)
@@ -132,23 +132,28 @@ server <- function(input, output) {
       }
 
      return(output_data)
+     return(parsed)
+     return(coauthor_data)
       }
      )
 
     # aggregate calculations
 
      h_index = output_data %>%
-    mutate(n = length(titles),
-           ind = if_else(citations >= n, 1,0)) %>%
+       arrange(-citations) %>%
+    mutate(order = dplyr::row_number(),
+           ind = if_else(citations >= order, 1,0)) %>%
     dplyr::summarize(h_index = sum(ind, na.rm = T)) %>%
     pull(h_index)
 
-    coauthor_data = get_coauthor_count(recs)
     coauthor_count = coauthor_data[2]
 
 
   output$output_table <- renderDT({
-    datatable(output_data, rownames = FALSE)
+    datatable(output_data %>%
+                filter(date >= two_years_prior_date & date < specific_date) %>%
+                arrange(citations)
+                , rownames = FALSE)
   })
 
   output$coauthor_table <- renderDT({
@@ -158,7 +163,8 @@ server <- function(input, output) {
   # Calculate summary values
   output$total_publications_box <- renderValueBox({
     valueBox(
-      value = nrow(output_data),
+      value = nrow(output_data%>%
+                     filter(date >= two_years_prior_date & date < specific_date)),
      # subtitle  = "Total Publications"
      # icon = "fa-book"
     )
